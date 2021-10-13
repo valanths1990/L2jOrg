@@ -29,10 +29,10 @@ import org.l2j.gameserver.ai.CtrlEvent;
 import org.l2j.gameserver.ai.CtrlIntention;
 import org.l2j.gameserver.api.elemental.ElementalType;
 import org.l2j.gameserver.data.xml.MagicLampData;
-import org.l2j.gameserver.data.xml.impl.ExtendDropData;
 import org.l2j.gameserver.datatables.drop.EventDropList;
 import org.l2j.gameserver.engine.item.ItemEngine;
 import org.l2j.gameserver.engine.item.ItemTemplate;
+import org.l2j.gameserver.engine.item.drop.ExtendDropEngine;
 import org.l2j.gameserver.engine.skill.api.Skill;
 import org.l2j.gameserver.enums.ChatType;
 import org.l2j.gameserver.enums.DropType;
@@ -59,6 +59,7 @@ import org.l2j.gameserver.network.serverpackets.CreatureSay;
 import org.l2j.gameserver.network.serverpackets.ExMagicAttackInfo;
 import org.l2j.gameserver.settings.CharacterSettings;
 import org.l2j.gameserver.settings.PartySettings;
+import org.l2j.gameserver.settings.SayhaGraceSettings;
 import org.l2j.gameserver.taskmanager.AttackableThinkTaskManager;
 import org.l2j.gameserver.taskmanager.DecayTaskManager;
 import org.l2j.gameserver.util.GameUtils;
@@ -176,9 +177,6 @@ public class Attackable extends Npc {
     /**
      * Reduce the current HP of the Attackable, update its _aggroList and launch the doDie Task if necessary.
      *  @param attacker The Creature who attacks
-     * @param skill
-     * @param isDOT
-     * @param drown
      */
     @Override
     public void reduceCurrentHp(double value, Creature attacker, Skill skill, boolean isDOT, boolean directlyToHp, boolean critical, boolean reflect, DamageInfo.DamageType drown) {
@@ -297,16 +295,39 @@ public class Attackable extends Npc {
         MapToLong<Player> playersDamage = new HashMapToLong<>();
         var maxDealerInfo = calculateMaxDamageDealer(playersDamage);
 
-        if (isRaid && !_isRaidMinion) {
-            calculateRaidRewards(lastAttacker, maxDealerInfo.player);
+        var penaltyModifier = calculateLevelPenalty(maxDealerInfo.player);
+        if(penaltyModifier == 0) {
+            return;
         }
 
-        doItemDrop(maxDealerInfo.player, lastAttacker);
+        if (isRaid && !_isRaidMinion) {
+            calculateRaidRewards(lastAttacker, maxDealerInfo.player, penaltyModifier);
+        }
+
+        doItemDrop(maxDealerInfo.player, lastAttacker, penaltyModifier);
 
         if (!getMustRewardExpSP()) {
             return;
         }
         rewardKillers(maxDealerInfo, playersDamage);
+    }
+
+    private float calculateLevelPenalty(Player player) {
+        var levelDiff = player.getLevel() - getLevel();
+        if (levelDiff <= 2) {
+            return 1f;
+        }
+        return switch (levelDiff) {
+            case 3 -> 0.97f;
+            case 4 -> 0.80f;
+            case 5 -> 0.61f;
+            case 6 -> 0.37f;
+            case 7 -> 0.22f;
+            case 8 -> 0.13f;
+            case 9 -> 0.08f;
+            case 10 -> 0.05f;
+            default -> 0f;
+        };
     }
 
     private void rewardKillers(MaxDamageDealer maxDealerInfo, MapToLong<Player> playersDamage) {
@@ -346,7 +367,7 @@ public class Attackable extends Npc {
             var playerDamage = playersDamage.getOrDefault(player, 0);
             partyDmg += playerDamage;
 
-            if (playerDamage > 0 && GameUtils.checkIfInRange(PartySettings.partyRange(), this, player, true)) {
+            if (GameUtils.checkIfInRange(PartySettings.partyRange(), this, player, true)) {
                 if (!attackerParty.isInCommandChannel() && player.getLevel() > partyLvl) {
                     partyLvl = player.getLevel();
                 }
@@ -388,20 +409,16 @@ public class Attackable extends Npc {
         }
     }
 
-
     private void rewardSoloKiller(MaxDamageDealer maxDealerInfo, Player attacker, long damage) {
-        float expMultiplier = calculateRewardExpMultiplier(attacker);
-
         final double[] expSp = calculateExpAndSp(attacker.getLevel(), damage, maxDealerInfo.totalDamage);
         double exp = expSp[0];
         double sp = expSp[1];
 
-        if (Config.CHAMPION_ENABLE && _champion) {
-            exp *= Config.CHAMPION_REWARDS_EXP_SP;
-            sp *= Config.CHAMPION_REWARDS_EXP_SP;
+        if(exp == 0 && sp == 0) {
+            return;
         }
 
-        exp *= expMultiplier;
+        exp *= calculateRewardExpMultiplier(attacker);
 
         if (_overhit && (_overhitAttacker != null) &&  (attacker == _overhitAttacker.getActingPlayer())) {
             attacker.sendPacket(SystemMessageId.OVER_HIT);
@@ -410,8 +427,13 @@ public class Attackable extends Npc {
         }
 
         if (!attacker.isDead()) {
-            exp = attacker.getStats().getValue(Stat.EXPSP_RATE, exp);
-            sp = attacker.getStats().getValue(Stat.EXPSP_RATE, sp);
+            rewardKiller(maxDealerInfo, attacker, damage, exp, sp);
+        }
+    }
+
+    private void rewardKiller(MaxDamageDealer maxDealerInfo, Player attacker, long damage, double exp, double sp) {
+        exp = attacker.getStats().getValue(Stat.EXPSP_RATE, exp);
+        sp = attacker.getStats().getValue(Stat.EXPSP_RATE, sp);
 
 
             attacker.addExpAndSp(exp, sp, useSayhaGraceRate());
@@ -437,7 +459,11 @@ public class Attackable extends Npc {
             }
             rewardAttributeExp(attacker, damage, maxDealerInfo.totalDamage);
         }
+
+    public final Set<WeakReference<Creature>> getAttackByList() {
+        return attackByList;
     }
+
 
     private float calculateRewardExpMultiplier(Player attacker) {
         for (var summon : attacker.getServitors().values()) {
@@ -468,10 +494,10 @@ public class Attackable extends Npc {
         return maxDamageDealer;
     }
 
-    private void calculateRaidRewards(Creature lastAttacker, Player maxDealer) {
+    private void calculateRaidRewards(Creature lastAttacker, Player maxDealer, float penaltyMultiplier) {
         final Player player = (maxDealer != null) && maxDealer.isOnline() ? maxDealer : lastAttacker.getActingPlayer();
         broadcastPacket(getSystemMessage(SystemMessageId.CONGRATULATIONS_YOUR_RAID_WAS_SUCCESSFUL));
-        final int raidbossPoints = (int) (getTemplate().getRaidPoints() * Config.RATE_RAIDBOSS_POINTS);
+        final int raidbossPoints = (int) (getTemplate().getRaidPoints() * Config.RATE_RAIDBOSS_POINTS * penaltyMultiplier);
         final Party party = player.getParty();
 
         if (party != null) {
@@ -526,7 +552,6 @@ public class Attackable extends Npc {
      *
      * @param attacker The Creature that gave damages to this Attackable
      * @param damage   The number of damages given by the attacker Creature
-     * @param skill
      */
     public void addDamage(Creature attacker, int damage, Skill skill) {
         if (attacker == null) {
@@ -660,8 +685,6 @@ public class Attackable extends Npc {
 
     /**
      * Clears _aggroList hate of the Creature without removing from the list.
-     *
-     * @param target
      */
     public void stopHating(Creature target) {
         if (target == null) {
@@ -736,8 +759,9 @@ public class Attackable extends Npc {
         return ai.getHate();
     }
 
-    public void doItemDrop(Player mainDamageDealer, Creature lastAttacker) {
-        doItemDrop(getTemplate(), mainDamageDealer == null || !mainDamageDealer.isOnline() ? lastAttacker : mainDamageDealer);
+    public void doItemDrop(Player mainDamageDealer, Creature lastAttacker, float penaltyModifier) {
+        var attacker = mainDamageDealer == null || !mainDamageDealer.isOnline() ? lastAttacker : mainDamageDealer;
+        doItemDrop(getTemplate(), attacker, penaltyModifier);
         doEventDrop(lastAttacker);
     }
 
@@ -755,11 +779,8 @@ public class Attackable extends Npc {
      * Create this or these Item corresponding to each Item Identifier dropped.<br>
      * If the autoLoot mode is actif and if the Creature that has killed the Attackable is a Player, Give the item(s) to the Player that has killed the Attackable.<br>
      * If the autoLoot mode isn't actif or if the Creature that has killed the Attackable is not a Player, add this or these item(s) in the world as a visible object at the position where mob was last.
-     *
-     * @param npcTemplate
-     * @param mainDamageDealer
      */
-    public void doItemDrop(NpcTemplate npcTemplate, Creature mainDamageDealer) {
+    protected void doItemDrop(NpcTemplate npcTemplate, Creature mainDamageDealer, float penaltyModifier) {
         if (mainDamageDealer == null) {
             return;
         }
@@ -771,7 +792,17 @@ public class Attackable extends Npc {
             return;
         }
 
-        npcTemplate.getExtendDrop().stream().map(ExtendDropData.getInstance()::getExtendDropById).filter(Objects::nonNull).forEach(e -> e.reward(player, this));
+        var it = npcTemplate.getExtendDrop().iterator();
+        var dropData = ExtendDropEngine.getInstance();
+        while(it.hasNext()) {
+            var dropId = it.nextInt();
+            var drop = dropData.getExtendDropById(dropId);
+            if(drop != null) {
+                drop.reward(player, this, penaltyModifier);
+            } else {
+                LOGGER.warn("Unknown extended drop id {} on npc {}", dropId, this);
+            }
+        }
 
         if (isSpoiled() && !_plundered) {
             _sweepItems.set(npcTemplate.calculateDrops(DropType.SPOIL, this, player));
@@ -996,10 +1027,16 @@ public class Attackable extends Npc {
                 case 7 -> 0.22;
                 case 8 -> 0.13;
                 case 9 -> 0.08;
-                default -> 0.05;
+                case 10 -> 0.05;
+                default -> 0;
             };
             xp *= mul;
             sp *= mul;
+
+            if (Config.CHAMPION_ENABLE && _champion) {
+                xp *= Config.CHAMPION_REWARDS_EXP_SP;
+                sp *= Config.CHAMPION_REWARDS_EXP_SP;
+            }
         }
 
         return new double[] { xp, sp };
@@ -1135,27 +1172,31 @@ public class Attackable extends Npc {
     /*
      * Return getSayhaGracePoints points decrease (if positive) or increase (if negative) based on damage. Maximum for damage = maxHp.
      */
-    public int getSayhaGracePoints(int level, double exp, boolean isBoss) {
-        if ((getLevel() <= 0) || (getExpReward() <= 0)) {
+    public int getSayhaGracePoints(int level, double exp, boolean isBoss)
+    {
+        if ((getLevel() <= 0) || (getExpReward() <= 0))
+        {
             return 0;
         }
-
         int points;
-        if (level < 85) {
+        if (level < 85)
+        {
             points = Math.max((int) ((exp / 1000) * Math.max(level - getLevel(), 1)), 1);
-        } else {
-            points = Math.max((int) ((exp / (isBoss ? Config.SAYHA_GRACE_CONSUME_BY_BOSS : Config.SAYHA_GRACE_CONSUME_BY_MOB)) * Math.max(level - getLevel(), 1)), 1);        }
-
+        }
+        else
+        {
+            points = Math.max((int) ((exp / (isBoss ? SayhaGraceSettings.ConsumeByBoss() : SayhaGraceSettings.ConsumeByMob())) * Math.max(level - getLevel(), 1)), 1);
+        }
         return -points;
     }
 
     /*
      * True if Sayha's Grace rate for exp and sp should be applied
      */
-    public boolean useSayhaGraceRate() {
-        return !_champion || Config.CHAMPION_ENABLE_SAYHA_GRACE;
+    public boolean useSayhaGraceRate()
+    {
+        return SayhaGraceSettings.isEnabled() && (!_champion || SayhaGraceSettings.isChampionEnabled());
     }
-
     /**
      * Return True if the Creature is RaidBoss or his minion.
      */
@@ -1166,8 +1207,6 @@ public class Attackable extends Npc {
 
     /**
      * Set this Npc as a Raid instance.
-     *
-     * @param isRaid
      */
     public void setIsRaid(boolean isRaid) {
         this.isRaid = isRaid;
@@ -1175,8 +1214,6 @@ public class Attackable extends Npc {
 
     /**
      * Set this Npc as a Minion instance.
-     *
-     * @param val
      */
     public void setIsRaidMinion(boolean val) {
         isRaid = val;
@@ -1226,13 +1263,10 @@ public class Attackable extends Npc {
         super.setTarget(object);
     }
 
-    public final Set<WeakReference<Creature>> getAttackByList() {
-        return attackByList;
-    }
-
     private static class MaxDamageDealer {
         private Player player;
         private long dealerMaxDamage;
         private long totalDamage;
     }
 }
+
