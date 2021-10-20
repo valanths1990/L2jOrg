@@ -5,7 +5,7 @@ plugins {
     id "application"
 }
 
-ext.updateName = "Classic - Wild Horizons"
+ext.updateName = "Classic - Herald of Light"
 
 ext.moduleName = 'org.l2j.gameserver'
 mainClassName = "org.l2j.gameserver.GameServer"
