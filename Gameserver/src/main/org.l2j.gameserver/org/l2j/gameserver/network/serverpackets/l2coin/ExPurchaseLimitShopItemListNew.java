@@ -58,6 +58,8 @@ public class ExPurchaseLimitShopItemListNew extends ServerPacket {
         }
         writeId(ServerExPacketId.EX_PURCHASE_LIMIT_SHOP_ITEM_LIST_NEW, buffer);
         buffer.writeByte(_index);
+        buffer.writeByte(0); // cPage
+        buffer.writeByte(0); // cMaxPage
         buffer.writeInt(products.size());
         for (var product : products.values())
         {
@@ -74,6 +76,7 @@ public class ExPurchaseLimitShopItemListNew extends ServerPacket {
             }
             buffer.writeInt(product.remainTime());
             buffer.writeInt(product.remainServerItemAmount());
+            buffer.writeShort(0); // sCircleNum
         }
     }
 
