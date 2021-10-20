@@ -170,6 +170,7 @@ public class UserInfo extends AbstractMaskPacket<UserInfoType> {
             buffer.writeShort(UserInfoType.ENCHANTLEVEL.getBlockLength());
             buffer.writeByte(enchantLevel);
             buffer.writeByte(armorEnchant);
+            buffer.writeByte(0x00);
         }
 
         if (containsMask(UserInfoType.APPAREANCE)) {
@@ -178,6 +179,7 @@ public class UserInfo extends AbstractMaskPacket<UserInfoType> {
             buffer.writeInt(player.getVisualHairColor());
             buffer.writeInt(player.getVisualFace());
             buffer.writeByte(player.isHairAccessoryEnabled());
+            buffer.writeInt(0x00);
         }
 
         if (containsMask(UserInfoType.STATUS)) {

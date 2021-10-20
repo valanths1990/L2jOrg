@@ -179,7 +179,9 @@ public class PlayerSelectionInfo extends ServerPacket {
             buffer.writeByte(playerInfo.isHairAccessoryEnabled()); // Show hair accessory if enabled
             buffer.writeInt(playerInfo.getRemainBanExpireTime()); // ban time in secs
             buffer.writeInt((int) (playerInfo.getLastAccess() / 1000));
-
+            //new 338
+            buffer.writeByte(0x00);
+            buffer.writeInt(0x00);
         }
     }
 }
