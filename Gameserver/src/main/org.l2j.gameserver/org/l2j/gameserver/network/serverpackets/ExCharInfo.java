@@ -203,5 +203,11 @@ public class ExCharInfo extends ServerPacket {
 
         buffer.writeSizedString(appearence.getVisibleName());
         buffer.writeByte(!player.isInOlympiadMode() && player.isAlikeDead());
+        buffer.writeShort(0x00); // 338
+        buffer.writeByte(0x01); // 338
+        buffer.writeInt(0x00); // 338
+        buffer.writeByte(0x00); // 338
+        buffer.writeInt(0x00); // 338
+        buffer.writeInt(0x00); // 338
     }
 }

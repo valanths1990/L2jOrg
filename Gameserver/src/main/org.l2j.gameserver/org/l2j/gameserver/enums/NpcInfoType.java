@@ -27,7 +27,7 @@ public enum NpcInfoType implements IUpdateTypeComponent {
     // 0
     ID(0x00, 4),
     ATTACKABLE(0x01, 1),
-    RELATIONS(0x02, 4),
+    RELATIONS(0x02, 8),
     NAME(0x03, 2),
     POSITION(0x04, (3 * 4)),
     HEADING(0x05, 4),
@@ -66,7 +66,7 @@ public enum NpcInfoType implements IUpdateTypeComponent {
     REPUTATION(0x22, 4),
     CLAN(0x23, (5 * 4)),
     ABNORMALS(0x24, 0),
-    VISUAL_STATE(0x25, 1);
+    VISUAL_STATE(0x25, 4);
 
     private final int _mask;
     private final int _blockLength;

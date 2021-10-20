@@ -229,7 +229,7 @@ public class NpcInfo extends AbstractMaskPacket<NpcInfoType> {
 
         buffer.writeInt(_npc.getObjectId());
         buffer.writeByte((_npc.isShowSummonAnimation() ? 0x02 : 0x00)); // // 0=teleported 1=default 2=summoned
-        buffer.writeShort(37); // mask_bits_37
+        buffer.writeShort(38); // mask_bits_37
         buffer.writeBytes(_masks);
 
         // Block 1
@@ -239,7 +239,7 @@ public class NpcInfo extends AbstractMaskPacket<NpcInfoType> {
             buffer.writeByte(isAttackable(_npc) && !(_npc instanceof Guard));
         }
         if (containsMask(NpcInfoType.RELATIONS)) {
-            buffer.writeInt(0x00); // unknown
+            buffer.writeLong(0x00); // unknown
         }
         if (containsMask(NpcInfoType.TITLE)) {
             buffer.writeString(_npc.getTitle());
@@ -349,7 +349,7 @@ public class NpcInfo extends AbstractMaskPacket<NpcInfoType> {
         }
 
         if (containsMask(NpcInfoType.VISUAL_STATE)) {
-            buffer.writeByte(_statusMask);
+            buffer.writeInt(_statusMask);
         }
 
         if (containsMask(NpcInfoType.ABNORMALS)) {
