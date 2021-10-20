@@ -45,7 +45,6 @@ import org.l2j.gameserver.model.events.EventDispatcher;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerClanJoin;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerClanLeaderChange;
 import org.l2j.gameserver.model.events.impl.character.player.OnPlayerClanLeft;
-import org.l2j.gameserver.model.events.impl.character.player.OnPlayerClanLvlUp;
 import org.l2j.gameserver.model.interfaces.IIdentifiable;
 import org.l2j.gameserver.model.interfaces.INamable;
 import org.l2j.gameserver.model.item.container.ClanWarehouse;
@@ -1113,7 +1112,7 @@ public class Clan implements IIdentifiable, INamable {
     }
 
 
-    public boolean levelUpClan()
+    public boolean levelUpClan(Player player)
     {
         changeLevel(getLevel() + 1);
         for (Player member : getOnlineMembers(0))
@@ -1522,7 +1521,7 @@ public class Clan implements IIdentifiable, INamable {
             {
                 if (new_exp >= Config.CLAN_EXP_REQ.get(getLevel()))
                 {
-                    levelUpClan();
+                    levelUpClan(player);
                 }
             }
             getDAO(ClanDAO.class).updateClanExp(this.getId(), data.getExpMonster(), data.getExpQuest());
