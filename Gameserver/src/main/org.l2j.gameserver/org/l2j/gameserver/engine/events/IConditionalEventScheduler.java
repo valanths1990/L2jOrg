@@ -17,13 +17,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.l2j.gameserver.model.eventengine;
+package org.l2j.gameserver.engine.events;
 
 /**
  * @author UnAfraid
  */
-public interface IConditionalEventScheduler {
-    boolean test();
+public interface IConditionalEventScheduler extends Runnable {
 
-    void run();
+    boolean test();
 }

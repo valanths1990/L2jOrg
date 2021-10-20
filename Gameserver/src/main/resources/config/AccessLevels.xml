@@ -463,7 +463,6 @@
 	<admin command="admin_get_skills" accessLevel="100" />
 	<admin command="admin_reset_skills" accessLevel="100" />
 	<admin command="admin_give_all_skills" accessLevel="100" />
-	<admin command="admin_give_all_skills_fs" accessLevel="100" />
 	<admin command="admin_give_clan_skills" accessLevel="100" />
 	<admin command="admin_give_all_clan_skills" accessLevel="100" />
 	<admin command="admin_remove_all_skills" accessLevel="100" />
@@ -541,8 +540,6 @@
 	<admin command="admin_tvt_remove" accessLevel="100" />
 	<admin command="admin_tvt_advance" accessLevel="100" />
 
-
-
 	<!-- ADMIN UNBLOCK IP -->
 	<admin command="admin_unblockip" accessLevel="100" />
 
@@ -552,13 +549,6 @@
 	<admin command="admin_full_vitality" accessLevel="100" />
 	<admin command="admin_empty_vitality" accessLevel="100" />
 	<admin command="admin_get_vitality" accessLevel="100" />
-
-	<!-- ADMIN SAYHA'S GRACE -->
-	<admin command="admin_set_sayha_grace" accessLevel="100" />
-	<admin command="admin_set_sayha_grace_level" accessLevel="100" />
-	<admin command="admin_full_sayha_grace" accessLevel="100" />
-	<admin command="admin_empty_sayha_grace" accessLevel="100" />
-	<admin command="admin_get_sayha_grace" accessLevel="100" />
 
 	<!-- ADMIN ZONE -->
 	<admin command="admin_zone_check" accessLevel="100" />

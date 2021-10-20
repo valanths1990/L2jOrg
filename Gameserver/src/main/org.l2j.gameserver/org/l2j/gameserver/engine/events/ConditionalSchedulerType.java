@@ -16,14 +16,12 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.l2j.gameserver.model.conditions;
-
-import org.l2j.gameserver.model.WorldObject;
-import org.l2j.gameserver.model.actor.Creature;
+package org.l2j.gameserver.engine.events;
 
 /**
- * @author Sdw
+ * @author JoeAlisson
  */
-public interface ICondition {
-    boolean test(Creature creature, WorldObject object);
+public enum ConditionalSchedulerType {
+    HAS_NOT_RUN,
+    BETWEEN
 }
