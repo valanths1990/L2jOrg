@@ -18,8 +18,6 @@
  */
 package org.l2j.gameserver;
 
-import io.github.joealisson.mmocore.ConnectionBuilder;
-import io.github.joealisson.mmocore.ConnectionHandler;
 import org.l2j.commons.cache.CacheFactory;
 import org.l2j.commons.configuration.Configurator;
 import org.l2j.commons.database.DatabaseAccess;
@@ -40,6 +38,7 @@ import org.l2j.gameserver.engine.clan.ClanEngine;
 import org.l2j.gameserver.engine.costume.CostumeEngine;
 import org.l2j.gameserver.engine.elemental.ElementalSpiritEngine;
 import org.l2j.gameserver.engine.events.EventEngine;
+import org.l2j.gameserver.engine.fishing.FishingEngine;
 import org.l2j.gameserver.engine.item.AttendanceEngine;
 import org.l2j.gameserver.engine.item.ItemEngine;
 import org.l2j.gameserver.engine.item.shop.L2Store;
@@ -50,14 +49,13 @@ import org.l2j.gameserver.engine.mission.MissionEngine;
 import org.l2j.gameserver.engine.rank.RankEngine;
 import org.l2j.gameserver.engine.scripting.ScriptEngineManager;
 import org.l2j.gameserver.engine.skill.api.SkillEngine;
+import org.l2j.gameserver.engine.transform.TransformEngine;
 import org.l2j.gameserver.engine.upgrade.UpgradeItemEngine;
 import org.l2j.gameserver.engine.vip.VipEngine;
 import org.l2j.gameserver.idfactory.IdFactory;
 import org.l2j.gameserver.instancemanager.*;
 import org.l2j.gameserver.model.votereward.VoteSystem;
-import org.l2j.gameserver.network.ClientPacketHandler;
-import org.l2j.gameserver.network.GameClient;
-import org.l2j.gameserver.network.authcomm.AuthServerCommunication;
+import org.l2j.gameserver.network.NetworkService;
 import org.l2j.gameserver.settings.FeatureSettings;
 import org.l2j.gameserver.settings.GeneralSettings;
 import org.l2j.gameserver.settings.ServerSettings;
@@ -67,9 +65,10 @@ import org.l2j.gameserver.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.cache.expiry.Duration;
+import javax.cache.expiry.TouchedExpiryPolicy;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.net.InetSocketAddress;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -90,7 +89,6 @@ public class GameServer {
     private static Logger LOGGER;
     private static GameServer INSTANCE;
     public static String fullVersion;
-    private final ConnectionHandler<GameClient> connectionHandler;
 
     public GameServer() throws Exception {
         final var serverLoadStart = Instant.now();
@@ -131,7 +129,7 @@ public class GameServer {
         MultisellEngine.init();
         RecipeData.getInstance();
         ArmorSetsData.getInstance();
-        FishingData.getInstance();
+        FishingEngine.init();
         HennaData.getInstance();
         ShuttleData.getInstance();
 
@@ -188,7 +186,7 @@ public class GameServer {
         HtmCache.getInstance();
         CrestTable.getInstance();
         TeleportersData.getInstance();
-        TransformData.getInstance();
+        TransformEngine.init();
         ReportTable.getInstance();
         if (Config.SELLBUFF_ENABLED) {
             SellBuffsManager.getInstance();
@@ -202,7 +200,6 @@ public class GameServer {
         SiegeManager.init();
         CastleManager.getInstance().activateInstances();
         SiegeScheduleData.getInstance();
-        CastleManorManager.getInstance();
         SiegeGuardManager.init();
         QuestManager.getInstance().report();
 
@@ -217,10 +214,7 @@ public class GameServer {
         TaskManager.getInstance();
 
         AntiFeedManager.getInstance().registerEvent(AntiFeedManager.GAME_ID);
-
-        if (GeneralSettings.allowMail()) {
-            MailEngine.init();
-        }
+        MailEngine.init();
 
         PunishmentManager.getInstance();
 
@@ -237,9 +231,6 @@ public class GameServer {
 
         printSection("Setting All characters to offline status!");
         getDAO(PlayerDAO.class).setAllCharactersOffline();
-
-        connectionHandler = ConnectionBuilder.create(new InetSocketAddress(ServerSettings.port()), GameClient::new, new ClientPacketHandler(), ThreadPool::execute).build();
-        connectionHandler.start();
     }
 
     public static void main(String[] args) throws Exception {
@@ -267,8 +258,8 @@ public class GameServer {
         ExtensionBoot.initializers();
 
         INSTANCE = new GameServer();
+        NetworkService.init();
 
-        ThreadPool.execute(AuthServerCommunication.getInstance());
         scheduleDeadLockDetector();
 
         printSection("Extensions Pos Loaders");
@@ -288,7 +279,7 @@ public class GameServer {
     }
 
     private static void configureCache() {
-        CacheFactory.getInstance().initialize("config/ehcache.xml");
+        CacheFactory.getInstance().build("html", String.class, String.class).setExpiryPolicyFactory(TouchedExpiryPolicy.factoryOf(Duration.TEN_MINUTES));
     }
 
     private static void configureNetworkPackets() {
@@ -328,15 +319,12 @@ public class GameServer {
                 LOGGER.info("Build Revision: .......... {}", versionProperties.getProperty("revision"));
                 LOGGER.info("Build date: .............. {}", versionProperties.getProperty("buildDate"));
                 LOGGER.info("Compiler JDK version: .... {}", versionProperties.getProperty("compilerVersion"));
+                LOGGER.info("Runtime Java version: .... {}", Runtime.version());
                 LOGGER.info("Report any bug at https://github.com/JoeAlisson/L2jOrg/issues");
             }
         } catch (IOException e) {
             LOGGER.warn(e.getMessage(), e);
         }
-    }
-
-    public ConnectionHandler<GameClient> getConnectionHandler() {
-        return connectionHandler;
     }
 
     public String getUptime() {
