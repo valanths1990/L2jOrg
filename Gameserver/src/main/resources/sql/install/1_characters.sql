@@ -1,5 +1,3 @@
-DROP TABLE IF EXISTS `characters`
-CREATE TABLE IF NOT EXISTS `characters`(
 DROP TABLE IF EXISTS `pledge_waiting_list`;
 DROP TABLE IF EXISTS `rankers_snapshot`;
 DROP TABLE IF EXISTS `bot_reported_char_data`;
