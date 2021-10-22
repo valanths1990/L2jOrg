@@ -189,6 +189,7 @@ public class GameServer {
         TeleportersData.getInstance();
         TransformEngine.init();
         ReportTable.getInstance();
+        PurgeData.getInstance();
         if (Config.SELLBUFF_ENABLED) {
             SellBuffsManager.getInstance();
         }

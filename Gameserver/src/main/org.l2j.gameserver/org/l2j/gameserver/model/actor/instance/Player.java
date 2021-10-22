@@ -88,6 +88,7 @@ import org.l2j.gameserver.model.item.type.WeaponType;
 import org.l2j.gameserver.model.matching.MatchingRoom;
 import org.l2j.gameserver.model.punishment.PunishmentAffect;
 import org.l2j.gameserver.model.punishment.PunishmentType;
+import org.l2j.gameserver.model.purge.Purge;
 import org.l2j.gameserver.model.quest.Quest;
 import org.l2j.gameserver.model.quest.QuestState;
 import org.l2j.gameserver.model.skills.AbnormalType;
@@ -184,6 +185,7 @@ public final class Player extends Playable {
     private PlayerStatsData statsData;
     private AutoPlaySettings autoPlaySettings;
     private PlayerVariableData variables;
+    private              Map<Integer, PurgeData>       _purges;
     private IntMap<CostumeData> costumes = Containers.emptyIntMap();
     private CostumeCollectionData activeCostumesCollection;
     private IntMap<CostumeCollectionData> costumesCollections = Containers.emptyIntMap();
@@ -701,6 +703,36 @@ public final class Player extends Playable {
         getDAO(PlayerDAO.class).save(statsData);
     }
 
+    public int getPurgeDataPoints(int purgeId)
+    {
+        return _purges.get(purgeId).getPurgeDataPoints();
+    }
+
+    public void setPurgeDataPoints(int purgeId, int purgeDataPoints)
+    {
+        _purges.get(purgeId).setPurgeDataPoints(purgeDataPoints);
+    }
+
+    public int getPurgeDataCurrentKeys(int purgeId)
+    {
+        return _purges.get(purgeId).getPurgeDataCurrentKeys();
+    }
+
+    public void setPurgeDataCurrentKeys(int purgeId, int purgeDataCurrentKeys)
+    {
+        _purges.get(purgeId).setPurgeDataCurrentKeys(purgeDataCurrentKeys);
+    }
+
+    public int getPurgeDataTotalKeys(int purgeId)
+    {
+        return _purges.get(purgeId).getPurgeDataTotalKeys();
+    }
+
+    public void setPurgeDataTotalKeys(int purgeId, int purgeDataTotalKeys)
+    {
+        _purges.get(purgeId).setPurgeDataTotalKeys(purgeDataTotalKeys);
+    }
+
     public boolean tryEnableActualAutoShot(ShotType type) {
         var itemId = activeSoulShots.get(type);
         var weapon = getActiveWeaponInstance();
@@ -997,6 +1029,30 @@ public final class Player extends Playable {
 
     void setStatsData(PlayerStatsData statsData) {
         this.statsData = statsData;
+    }
+
+    public void setPurges(List<PurgeData> purgesList)
+    {
+        // TODO: check if new purges has been added to server, then update every player adding this new purges
+        Map<Integer, PurgeData> purges = new HashMap<>();
+        if (purgesList == null || purgesList.size() <= 0)
+        {
+            for (Purge purge : org.l2j.gameserver.data.xml.PurgeData.getInstance().getPurges())
+            {
+                PurgeData purgeData = new PurgeData();
+                purgeData.setPlayerId(getId());
+                purgeData.setPurgeId(purge.getPurgeId());
+                purgeData.setPurgeDataPoints(0);
+                purgeData.setPurgeDataCurrentKeys(0);
+                purgeData.setPurgeDataTotalKeys(0);
+                purges.put(purge.getPurgeId(), purgeData);
+            }
+        }
+        else
+        {
+            purgesList.forEach(purge -> purges.put(purge.getPurgeId(), purge));
+        }
+        this._purges = purges;
     }
 
     void setTeleportFavorites(IntSet teleports) {
@@ -4622,7 +4678,7 @@ public final class Player extends Playable {
         }
 
         getDAO(PlayerVariablesDAO.class).save(variables);
-
+        storePurges();
         final var playerDAO = getDAO(PlayerDAO.class);
         playerDAO.save(statsData);
 
@@ -7731,6 +7787,11 @@ public final class Player extends Playable {
         getDAO(PlayerVariablesDAO.class).save(variables);
     }
 
+    public void storePurges()
+    {
+        for (Entry<Integer, PurgeData> purge : _purges.entrySet())
+            getDAO(PurgeDAO.class).save(purge.getValue());
+    }
 
     @Override
     public int getId() {

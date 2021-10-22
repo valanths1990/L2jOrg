@@ -1,25 +1,35 @@
 package org.l2j.gameserver.network.serverpackets.subjugation;
 
 import io.github.joealisson.mmocore.WritableBuffer;
-import org.l2j.gameserver.engine.rank.RankEngine;
-import org.l2j.gameserver.model.actor.instance.Player;
 import org.l2j.gameserver.network.GameClient;
 import org.l2j.gameserver.network.ServerExPacketId;
 import org.l2j.gameserver.network.serverpackets.ServerPacket;
 
-public class ExSubjugationGacha extends ServerPacket {
+import java.util.Map;
 
-    public ExSubjugationGacha(Player player) {
+public class ExSubjugationGacha extends ServerPacket
+{
+	private final Map<Integer, Integer> _obtainedItems;
 
-    }
+	public ExSubjugationGacha(Map<Integer, Integer> obtainedItems)
+	{
+		_obtainedItems = obtainedItems;
+	}
 
-    @Override
-    protected void writeImpl(GameClient client, WritableBuffer buffer) {
-        writeId(ServerExPacketId.EX_SUBJUGATION_GACHA, buffer);
-        //buffer.writeInt(gachaItem.size); //todo gachasize
-        //  for (var gachaItem : gachas) {
-               // buffer.writeInt(); //todo classId
-              //  buffer.writeInt(); //todo Amount
-        // }
-    }
+	@Override
+	protected void writeImpl(GameClient client, WritableBuffer buffer)
+	{
+		writeId(ServerExPacketId.EX_SUBJUGATION_GACHA, buffer);
+		buffer.writeInt(_obtainedItems.size());
+		for (Map.Entry<Integer, Integer> reward : _obtainedItems.entrySet())
+		{
+			buffer.writeInt(reward.getKey());
+			buffer.writeInt(reward.getValue());
+		}
+		//buffer.writeInt(gachaItem.size); // TODO gachasize
+		//  for (var gachaItem : gachas) {
+		// buffer.writeInt(); // TODO classId
+		//  buffer.writeInt(); // TODO Amount
+		// }
+	}
 }

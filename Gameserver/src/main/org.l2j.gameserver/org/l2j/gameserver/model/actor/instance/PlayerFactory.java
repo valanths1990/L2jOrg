@@ -19,10 +19,7 @@
 package org.l2j.gameserver.model.actor.instance;
 
 import org.l2j.gameserver.Config;
-import org.l2j.gameserver.data.database.dao.ItemDAO;
-import org.l2j.gameserver.data.database.dao.PetDAO;
-import org.l2j.gameserver.data.database.dao.PlayerDAO;
-import org.l2j.gameserver.data.database.dao.PlayerVariablesDAO;
+import org.l2j.gameserver.data.database.dao.*;
 import org.l2j.gameserver.data.database.data.PlayerData;
 import org.l2j.gameserver.data.database.data.PlayerStatsData;
 import org.l2j.gameserver.data.database.data.PlayerVariableData;
@@ -90,6 +87,7 @@ public class PlayerFactory {
         client.setPlayer(player);
 
         player.setVariables(getDAO(PlayerVariablesDAO.class).findById(playerId));
+        player.setPurges(getDAO(PurgeDAO.class).findById(playerId));
         player.setStatsData(playerDAO.findPlayerStatsData(playerId));
 
         if(isNull(player.getStatsData())) { // TODO remove late, just temp fix to already created players
